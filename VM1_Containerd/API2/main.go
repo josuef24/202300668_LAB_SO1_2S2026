@@ -14,23 +14,47 @@ type HealthResponse struct {
 	Carnet    string `json:"carnet"`
 }
 
+type CallResponse struct {
+	ApiName    string `json:"apiname"`
+	Message    string `json:"message"`
+	Connection bool   `json:"connection"`
+	Carnet     string `json:"carnet"`
+}
+
+func checkAPI(targetURL, targetAPI, targetVM string) CallResponse {
+	client := http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(targetURL)
+	if err != nil {
+		return CallResponse{ApiName: targetAPI, Message: "ERROR: The " + targetAPI + " located on the " + targetVM + " is not working", Connection: false, Carnet: "202300668"}
+	}
+	defer resp.Body.Close()
+
+	var health HealthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&health); err == nil && health.Status == "UP" {
+		return CallResponse{ApiName: targetAPI, Message: "The " + targetAPI + " located on the " + targetVM + " is working", Connection: true, Carnet: "202300668"}
+	}
+	return CallResponse{ApiName: targetAPI, Message: "ERROR: The " + targetAPI + " located on the " + targetVM + " is not working", Connection: false, Carnet: "202300668"}
+}
+
 func main() {
 	mux := http.NewServeMux()
 
-	// Endpoint /health obligatorio para API2
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		response := HealthResponse{
-			Status:    "UP",
-			Message:   "API2 is Ready",
-			Timestamp: time.Now().Format(time.RFC3339),
-			VM:        "VM1",
-			Carnet:    "202300668",
-		}
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(HealthResponse{
+			Status: "UP", Message: "API2 is Ready", Timestamp: time.Now().Format(time.RFC3339), VM: "VM1", Carnet: "202300668",
+		})
 	})
 
-	// Aquí irán tus endpoints de llamada call-api1 y call-api3
+	mux.HandleFunc("/api2/202300668/call-api1", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(checkAPI("http://192.168.122.115:8081/health", "API1", "VM1"))
+	})
+
+	mux.HandleFunc("/api2/202300668/call-api3", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(checkAPI("http://192.168.122.245:8080/health", "API3", "VM2"))
+	})
 
 	http.ListenAndServe(":8082", mux)
 }
