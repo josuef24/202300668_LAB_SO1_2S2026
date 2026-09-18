@@ -1,0 +1,67 @@
+VM1
+ssh josuevm1@192.168.122.115
+
+1. Borrar los contenedores de hoy
+sudo ctr containers rm api1-final api2-final
+
+2. Levantarlos limpios y en segundo plano
+sudo ctr run -d --net-host 192.168.122.248:5000/api1-202300668:latest api1-final
+sudo ctr run -d --net-host 192.168.122.248:5000/api2-202300668:latest api2-final
+
+-ENDPOINT /healt:
+    API1:
+curl -s http://192.168.122.115:8081/health | jq .
+
+    API2: 
+curl -s http://192.168.122.115:8082/health | jq .
+-----------------------------------------------------
+
+VM2
+ssh josuevm1@192.168.122.245
+
+-ENCENDER API3:
+sudo podman start api3-server
+
+-ENDPOINT /healt (API3)
+curl -s http://192.168.122.245:8080/health | jq .
+--------------------------------------------------
+
+VM3
+ssh josuevm1@192.168.122.248
+
+- ENCENDER CONTENEDOR:
+sudo docker start zot-registry
+
+------------------
+
+- COMPROBAR DOCKERFILES
+http://192.168.122.248:5000/v2/_catalog
+terminal: 
+curl -s http://192.168.122.248:5000/v2/_catalog | jq .
+
+- DESCARGAR IMAGENES EN VMs
+OP1: ***
+sudo ctr images pull --plain-http 192.168.122.248:5000/api3-202300668:latest
+OP2:
+sudo podman pull --tls-verify=false 192.168.122.248:5000/api1-202300668:latest
+
+--------------------------------------
+
+THUNDER CLIENT
+-API1 A API2
+http://192.168.122.115:8081/api1/202300668/call-api2
+
+-API1 A API3
+http://192.168.122.115:8081/api1/202300668/call-api3
+
+-API2 A API1
+http://192.168.122.115:8082/api2/202300668/call-api1
+
+-API2 A API3
+http://192.168.122.115:8082/api2/202300668/call-api3
+
+-API3 A API1
+http://192.168.122.245:8080/api3/202300668/call-api1
+
+-API3 A API2
+http://192.168.122.245:8080/api3/202300668/call-api2
